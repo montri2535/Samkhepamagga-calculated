@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Untitled</title>
+  
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+100%
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>จิตพลศาสตร์และคณนารมณ์</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', sans-serif; background: #f2f2f2; padding: 20px; }
+    .container { max-width: 800px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    h1 { text-align: center; margin-bottom: 10px; }
+    h3 { margin-top: 30px; }
+    #timerDisplay { text-align: center; font-size: 1.2em; margin-bottom: 10px; }
+    #tapBtn { width: 100px; height: 100px; border-radius: 50%; background: red; color: white; font-size: 24px; border: none; margin: auto; display: block; }
+    .score-row { margin: 15px 0; }
+    .score-row label { display: block; margin-bottom: 5px; }
+    .score-row button { margin-right: 5px; padding: 5px 12px; border-radius: 5px; border: 1px solid #ccc; background: #f2f2f2; cursor: pointer; }
+    input[type="text"], input[type="number"] { padding: 6px; width: 100%; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+    button.primary { background: #4caf50; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+    table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 14px; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 5px; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div style="
+  font-family: 'Leelawadee UI', serif;
+  font-size: 48px;
+  width: 80px;
+  height: 80px;
+  line-height: 80px;
+  text-align: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, gold 40%, #b8860b 100%);
+  color: white;
+  box-shadow: 0 0 20px gold;
+  margin: 0 auto 20px auto;
+">
+  Ψ
+</div>
+  <h1>จิตพลศาสตร์และคณนารมณ์</h1>
+  <p style="text-align:center; font-size: 0.9em;">โดย พระอธิการมนตรี ปภสฺสโร (แสนสุภา)</p>
+
+  <input type="text" id="firstName" placeholder="ชื่อ">
+  <input type="text" id="lastName" placeholder="นามสกุล">
+  <input type="number" id="minutes" placeholder="ระบุจำนวนนาที (เช่น 5)">
+  <button onclick="startPractice()" class="primary">เริ่มปฏิบัติ</button>
+
+  <div id="timerDisplay"></div>
+  <button id="tapBtn" disabled>0</button>
+  <p style="text-align:center; font-size: 0.8em;">กดปุ่มนับอารมณ์สีแดง</p>
+
+  <form id="s-form"></form>
+  <button onclick="submitData()" class="primary">คำนวณและประเมินผล</button>
+
+  <div id="resultSection"></div>
+
+  <div style="margin-top: 30px;">
+    <h3>ดูผลย้อนหลัง</h3>
+    <button onclick="showHistory(10)">ย้อนหลัง 10 ครั้ง</button>
+    <button onclick="showHistory(20)">ย้อนหลัง 20 ครั้ง</button>
+    <button onclick="showHistory(30)">ย้อนหลัง 30 ครั้ง</button>
+    <div id="historyResult"></div>
+  </div>
+
+  <div style="margin-top: 30px;">
+    <h3>กราฟแนวโน้มค่าจิตพลศาสตร์</h3>
+    <canvas id="trendChart" height="150"></canvas>
+  </div>
+</div>
+<div style="margin-top: 30px;">
+  <h3>Export ข้อมูล</h3>
+  <button onclick="exportCSV()">Download CSV</button>
+</div>
+<script>
+let counter = 0;
+let timer;
+let remainingSeconds = 0;
+let history = [];
+let chart;
+
+const tapBtn = document.getElementById("tapBtn");
+const timerDisplay = document.getElementById("timerDisplay");
+const sForm = document.getElementById("s-form");
+const trendChart = document.getElementById("trendChart");
+
+function startPractice() {
+  const minutes = parseInt(document.getElementById("minutes").value);
+  const firstName = document.getElementById("firstName").value;
+  const lastName = document.getElementById("lastName").value;
+  if (!firstName || !lastName || isNaN(minutes) || minutes <= 0) {
+    alert("กรุณากรอกชื่อ-นามสกุล และเวลาที่ถูกต้อง");
+    return;
+  }
+
+  counter = 0;
+  tapBtn.textContent = "0";
+  tapBtn.disabled = false;
+  generateSForm();
+
+  remainingSeconds = minutes * 60;
+  updateTimerDisplay();
+  clearInterval(timer);
+  timer = setInterval(() => {
+    remainingSeconds--;
+    updateTimerDisplay();
+    if (remainingSeconds <= 0) {
+      clearInterval(timer);
+      alert("หมดเวลา กรุณาทำแบบประเมินให้ครบ");
+      tapBtn.disabled = true;
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const min = Math.floor(remainingSeconds / 60);
+  const sec = remainingSeconds % 60;
+  timerDisplay.textContent = `⏳ ${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+tapBtn.addEventListener("click", () => {
+  counter++;
+  tapBtn.textContent = counter;
+});
+
+function generateSForm() {
+  const questions = [
+    "S1.1 ตื่นรู้อารมณ์อย่างมาก", "S1.2 กระปรี้กระเปร่าในการดูอารมณ์", "S1.3 รู้ทันอารมณ์ทุกครั้ง",
+    "S2.1 มีความสงบมากขึ้น", "S2.2 มีสมาธิที่ดิ่งลง", "S2.3 มีความนิ่งและผ่อนคลาย",
+    "S3.1 มีความระวังอารมณ์สูง", "S3.2 พยายามตั้งสติในการรู้อารมณ์ทุกครั้ง"
+  ];
+
+  sForm.innerHTML = "";
+  questions.forEach((q, i) => {
+    const div = document.createElement("div");
+    div.className = "score-row";
+    const label = document.createElement("label");
+    label.textContent = q;
+    div.appendChild(label);
+
+    for (let j = 1; j <= 5; j++) {
+      const btn = document.createElement("button");
+      btn.textContent = j;
+      btn.onclick = (e) => {
+        e.preventDefault();
+        div.querySelectorAll("button").forEach(b => b.style.background = "#f2f2f2");
+        btn.style.background = "#4caf50";
+        btn.dataset.value = j;
+      };
+      div.appendChild(btn);
+    }
+    sForm.appendChild(div);
+  });
+}
+
+function submitData() {
+  const name = document.getElementById("firstName").value;
+  const lastname = document.getElementById("lastName").value;
+  const scores = Array.from(document.querySelectorAll(".score-row")).map(row => {
+    const selected = Array.from(row.querySelectorAll("button")).find(b => b.style.background.includes("rgb(76"));
+    return selected ? parseInt(selected.textContent) : null;
+  });
+
+  if (scores.includes(null)) return alert("กรุณาให้คะแนนทุกข้อ");
+
+  const duration = parseInt(document.getElementById("minutes").value) * 60;
+  const E = counter / (duration || 1);
+  const S̄ = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const σs = Math.sqrt(scores.map(v => (v - S̄) ** 2).reduce((a, b) => a + b, 0) / scores.length);
+  const Ψs = S̄;
+  const [Emin, Emax] = [Math.min(...history.map(h => h.E).concat(E)), Math.max(...history.map(h => h.E).concat(E))];
+  const E_norm = 1 - (E - Emin) / ((Emax - Emin) || 0.0001);
+  const S_norm = (S̄ - 1) / 4;
+  const ES = (E_norm + S_norm) / (σs + 0.01);
+  const D = ES * 86.4;
+  const now = new Date().toLocaleString("th-TH");
+
+  const record = { date: now, name: `${name} ${lastname}`, E, S̄, σs, Ψs, ES, D };
+  history.push(record);
+  displayResult(record);
+  updateGraph();
+}
+
+function displayResult(r) {
+  const div = document.getElementById("resultSection");
+  div.innerHTML = `
+    <h3>ผลการประเมิน</h3>
+    <table>
+      <tr>
+        <th>เวลา</th><th>ชื่อ</th><th>E</th><th>S̄</th><th>σs</th><th>Ψs</th><th>ES</th><th>D</th>
+      </tr>
+      <tr>
+        <td>${r.date}</td>
+        <td>${r.name}</td>
+        <td>${r.E.toFixed(2)}<br><small>${getQualityLabel("E", r.E)}</small></td>
+        <td>${r.S̄.toFixed(2)}<br><small>${getQualityLabel("S̄", r.S̄)}</small></td>
+        <td>${r.σs.toFixed(2)}<br><small>${getQualityLabel("σs", r.σs)}</small></td>
+        <td>${r.Ψs.toFixed(2)}<br><small>${getQualityLabel("Ψs", r.Ψs)}</small></td>
+        <td>${r.ES.toFixed(2)}<br><small>${getQualityLabel("ES", r.ES)}</small></td>
+        <td>${r.D.toFixed(2)}<br><small>${getQualityLabel("D", r.D)}</small></td>
+      </tr>
+    </table>
+  `;
+}
+  function showHistory(n) {
+  const resultDiv = document.getElementById("historyResult");
+  if (history.length === 0) {
+    resultDiv.innerHTML = "<p>ยังไม่มีข้อมูลย้อนหลัง</p>";
+    return;
+  }
+
+  const recent = history.slice(-n).reverse(); // เอากลับหลังสุด n รายการ
+  let html = `<table>
+    <tr>
+      <th>เวลา</th><th>ชื่อ</th><th>E</th><th>S̄</th><th>σs</th><th>Ψs</th><th>ES</th><th>D</th>
+    </tr>`;
+  
+  recent.forEach(r => {
+    html += `<tr>
+      <td>${r.date}</td>
+      <td>${r.name}</td>
+      <td>${r.E.toFixed(2)}<br><small>${getQualityLabel("E", r.E)}</small></td>
+      <td>${r.S̄.toFixed(2)}<br><small>${getQualityLabel("S̄", r.S̄)}</small></td>
+      <td>${r.σs.toFixed(2)}<br><small>${getQualityLabel("σs", r.σs)}</small></td>
+      <td>${r.Ψs.toFixed(2)}<br><small>${getQualityLabel("Ψs", r.Ψs)}</small></td>
+      <td>${r.ES.toFixed(2)}<br><small>${getQualityLabel("ES", r.ES)}</small></td>
+      <td>${r.D.toFixed(2)}<br><small>${getQualityLabel("D", r.D)}</small></td>
+    </tr>`;
+  });
+
+  html += "</table>";
+  resultDiv.innerHTML = html;
+}
+
+function getQualityLabel(type, value) {
+  switch (type) {
+    case "E": return value <= 0.05 ? "ดีมาก" : value <= 0.1 ? "ดี" : "ควรปรับปรุง";
+    case "S̄": return value >= 4 ? "ดีมาก" : value >= 3 ? "ดี" : "ควรปรับปรุง";
+    case "σs": return value < 0.3 ? "ดีมาก" : value < 0.6 ? "ดี" : "ควรปรับปรุง";
+    case "Ψs": return value >= 4 ? "ดีมาก" : value >= 3 ? "ดี" : "ควรปรับปรุง";
+    case "ES": return value >= 100 ? "ดีมาก" : value >= 50 ? "ดี" : "ควรปรับปรุง";
+    case "D": return value >= 300 ? "ดีมาก" : value >= 100 ? "ดี" : "ควรปรับปรุง";
+    default: return "-";
+  }
+}
+
+function updateGraph() {
+  const labels = history.map(h => h.date);
+  const dataE = history.map(h => h.E);
+  const dataES = history.map(h => h.ES);
+  const dataD = history.map(h => h.D);
+
+  if (chart) chart.destroy();
+  chart = new Chart(trendChart, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "E", data: dataE, borderWidth: 2 },
+        { label: "ES", data: dataES, borderWidth: 2 },
+        { label: "D", data: dataD, borderWidth: 2 }
+      ]
+    }
+  });
+}
+function exportCSV() {
+  if (history.length === 0) {
+    alert("ไม่มีข้อมูลให้บันทึก");
+    return;
+  }
+
+  const headers = ["เวลา", "ชื่อ", "E", "S̄", "σs", "Ψs", "ES", "D"];
+  const rows = history.map(r => [
+    r.timestamp,
+    r.name,
+    r.E,
+    r.S̄,
+    r.σs,
+    r.Ψs,
+    r.ES,
+    r.D
+  ]);
+
+  const csvContent =
+    "data:text/csv;charset=utf-8," +
+    [headers, ...rows].map(e => e.join(",")).join("\n");
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "จิตพลศาสตร์.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+</script>
+</body>
+</html>
+<!-- partial -->
+  
+</body>
+</html>
